@@ -23,26 +23,11 @@ def write_to_dynamodb(dynamodb, table_name, item):
 def main():
     aws_region = os.getenv("AWS_REGION")
     s3_bucket = os.getenv("S3_BUCKET")
-    ref_name = os.getenv("GITHUB_REF_NAME", "")
-    head_ref = os.getenv("GITHUB_HEAD_REF", "")
-    # Use PR head_ref if present, else fallback
-    branch_name = head_ref if head_ref else (ref_name or "local")
+    dynamodb_table = os.getenv("DYNAMODB_TABLE_BETA")
 
-    tbl_beta = os.getenv("DYNAMODB_TABLE_BETA")
-    tbl_prod = os.getenv("DYNAMODB_TABLE_PROD")
-
-    # If branch is exactly “dev”, use prod; else use beta
-    if branch_name == "dev":
-        dynamodb_table = os.getenv("DYNAMODB_TABLE_BETA")
-    elif tbl_prod:
-        dynamodb_table = os.getenv("DYNAMODB_TABLE_PROD")
-    else:
-        tbl_beta = os.getenv("DYNAMODB_TABLE_BETA")
-
-    print(f"[DEBUG] GITHUB_HEAD_REF = {head_ref}")
-    print(f"[DEBUG] GITHUB_REF_NAME = {ref_name}")
-    print(f"[DEBUG] resolved branch_name = {branch_name}")
-    print(f"[DEBUG] selected DynamoDB table = {dynamodb_table}")
+    print(f"[DEBUG] AWS_REGION = {aws_region}")
+    print(f"[DEBUG] S3_BUCKET = {s3_bucket}")
+    print(f"[DEBUG] DYNAMODB_TABLE_BETA = {dynamodb_table}")
 
     if not aws_region or not s3_bucket or not dynamodb_table:
         raise RuntimeError(
@@ -76,7 +61,7 @@ def main():
                     for lbl in labels
                 ],
                 "timestamp": datetime.now(timezone.utc).isoformat(),
-                "branch": branch_name,
+                "branch": "beta",
             }
 
             write_to_dynamodb(dynamodb, dynamodb_table, item)
