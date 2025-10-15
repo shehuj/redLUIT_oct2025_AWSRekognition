@@ -33,3 +33,14 @@ jobs:
 
       - name: Run image analysis
         run: python analyze_image/prod.py
+
+      - name: List files for debugging
+        run: ls -R images
+
+      - name: Debug environment variables
+        run: |
+          echo "GITHUB_REF_NAME: $GITHUB_REF_NAME"
+          echo "S3_BUCKET_PATH_PROD: $S3_BUCKET_PATH_PROD"
+          echo "AWS_REGION: $AWS_REGION"
+          echo "S3_BUCKET: $S3_BUCKET"
+          echo "DYNAMODB_TABLE: $DYNAMODB_TABLE" 
