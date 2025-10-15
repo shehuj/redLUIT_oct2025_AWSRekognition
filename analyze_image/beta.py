@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 
 def upload_to_s3(s3_client, bucket, image_path):
-    key = f"rekognition-input/{os.path.basename(image_path)}"
+    key = f"rekognition-input/beta/{os.path.basename(image_path)}"
     s3_client.upload_file(image_path, bucket, key)
     return key
 
@@ -25,14 +25,17 @@ def main():
     s3_bucket = os.getenv("S3_BUCKET")
     dynamodb_table = os.getenv("DYNAMODB_TABLE_BETA")
 
-    print(f"[DEBUG] AWS_REGION = {aws_region}")
-    print(f"[DEBUG] S3_BUCKET = {s3_bucket}")
-    print(f"[DEBUG] DYNAMODB_TABLE_BETA = {dynamodb_table}")
+    print(f"[DEBUG] AWS_REGION = {aws_region}\n")
+    print(f"[DEBUG] S3_BUCKET = {s3_bucket}\n")
+    print(f"[DEBUG] DYNAMODB_TABLE_BETA = {dynamodb_table}\n")
 
     if not aws_region or not s3_bucket or not dynamodb_table:
         raise RuntimeError(
             "Missing one of AWS_REGION, S3_BUCKET, or the table name. "
-            "Got: aws_region=%s, s3_bucket=%s, dynamodb_table=%s"
+            "Got: aws_region=%s, " \
+            "s3_bucket=%s, " \
+            "dynamodb_table=%s" \
+            "s3_bucket_path_beta=%s"
             % (aws_region, s3_bucket, dynamodb_table)
         )
 
