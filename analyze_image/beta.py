@@ -26,14 +26,17 @@ def main():
     s3_bucket_Path = os.getenv("S3_BUCKET_PATH")
     dynamodb_table = os.getenv("DYNAMODB_TABLE_BETA")
 
-    print(f"[DEBUG] AWS_REGION = {aws_region}")
-    print(f"[DEBUG] S3_BUCKET = {s3_bucket}")
-    print(f"[DEBUG] DYNAMODB_TABLE_BETA = {dynamodb_table}")
+    print(f"[DEBUG] AWS_REGION = {aws_region}\n")
+    print(f"[DEBUG] S3_BUCKET = {s3_bucket}\n")
+    print(f"[DEBUG] DYNAMODB_TABLE_BETA = {dynamodb_table}\n")
 
     if not aws_region or not s3_bucket or not dynamodb_table:
         raise RuntimeError(
             "Missing one of AWS_REGION, S3_BUCKET, or the table name. "
-            "Got: aws_region=%s, s3_bucket=%s, dynamodb_table=%s"
+            "Got: aws_region=%s, " \
+            "s3_bucket=%s, " \
+            "dynamodb_table=%s" \
+            "s3_bucket_path_beta=%s"
             % (aws_region, s3_bucket, dynamodb_table)
         )
 
