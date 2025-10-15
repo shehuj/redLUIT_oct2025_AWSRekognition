@@ -32,10 +32,13 @@ def main():
     tbl_prod = os.getenv("DYNAMODB_TABLE_PROD")
 
     # If branch is exactly “main”, use prod; else use beta
-    if branch_name == "main":
-        dynamodb_table = tbl_prod
+    if branch_name == "beta":
+        dynamodb_table = os.getenv("DYNAMODB_TABLE_BETA")
+    elif branch_name == "prod":
+        dynamodb_table = os.getenv("DYNAMODB_TABLE_PROD")
     else:
-        dynamodb_table = tbl_beta
+        # Handle the 'dev' branch or any other branch
+        dynamodb_table = os.getenv("DYNAMODB_TABLE_BETA")
 
     print(f"[DEBUG] GITHUB_HEAD_REF = {head_ref}")
     print(f"[DEBUG] GITHUB_REF_NAME = {ref_name}")
@@ -79,6 +82,8 @@ def main():
 
             write_to_dynamodb(dynamodb, dynamodb_table, item)
             print(json.dumps(item, indent=2, default=str))
+            print("Written to DynamoDB.\n")
+
 
 if __name__ == "__main__":
     main()
