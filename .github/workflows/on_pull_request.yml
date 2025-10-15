@@ -3,7 +3,7 @@ name: Analyze Images on Pull Request
 on:
   pull_request:
     branches:
-      - beta
+      - dev
     paths:
       - "images/**"
 
