@@ -32,10 +32,12 @@ def main():
     tbl_prod = os.getenv("DYNAMODB_TABLE_PROD")
 
     # If branch is exactly “dev”, use prod; else use beta
-    if branch_name == "prod":
+    if branch_name == "dev":
+        dynamodb_table = os.getenv("DYNAMODB_TABLE_BETA")
+    elif tbl_prod:
         dynamodb_table = os.getenv("DYNAMODB_TABLE_PROD")
     else:
-        dynamodb_table = os.getenv("DYNAMODB_TABLE_BETA")
+        tbl_beta = os.getenv("DYNAMODB_TABLE_BETA")
 
     print(f"[DEBUG] GITHUB_HEAD_REF = {head_ref}")
     print(f"[DEBUG] GITHUB_REF_NAME = {ref_name}")
