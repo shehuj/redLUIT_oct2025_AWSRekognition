@@ -34,4 +34,4 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run image analysis
-        run: python analyze_image.py
+        run: python analyze_image/beta.py
