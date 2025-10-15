@@ -53,7 +53,7 @@ def main():
 
             key = upload_to_s3(s3, s3_bucket, image_path)
             labels = analyze_image(rek, s3_bucket, key)
-            s3_bucket_path_beta = f"s3://{s3_bucket}/{key}"
+            s3_bucket_path_beta = (f"s3://{s3_bucket}/{key}")
     
 
             image_id = os.path.splitext(image_file)[0]
