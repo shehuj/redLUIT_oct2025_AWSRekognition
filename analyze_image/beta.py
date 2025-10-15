@@ -23,6 +23,7 @@ def write_to_dynamodb(dynamodb, table_name, item):
 def main():
     aws_region = os.getenv("AWS_REGION")
     s3_bucket = os.getenv("S3_BUCKET")
+    s3_bucket_Path = os.getenv("S3_BUCKET_PATH")
     dynamodb_table = os.getenv("DYNAMODB_TABLE_BETA")
 
     print(f"[DEBUG] AWS_REGION = {aws_region}\n")
