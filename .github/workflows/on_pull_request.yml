@@ -35,3 +35,16 @@ jobs:
 
       - name: Run image analysis
         run: python analyze_image/beta.py
+
+      - name: List files for debugging
+        run: ls -R images
+
+      - name: Debug environment variables
+        run: |
+          echo "GITHUB_REF_NAME: $GITHUB_REF_NAME"
+          echo "GITHUB_HEAD_REF: $GITHUB_HEAD_REF"
+          echo "GITHUB_BASE_REF: $GITHUB_BASE_REF"
+          echo "GITHUB_EVENT_NAME: $GITHUB_EVENT_NAME" 
+          echo "AWS_REGION: $AWS_REGION"
+          echo "S3_BUCKET: $S3_BUCKET"
+          echo "DYNAMODB_TABLE: $DYNAMODB_TABLE"

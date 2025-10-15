@@ -43,7 +43,7 @@ def main():
 
     image_dir = "images"
     for image_file in os.listdir(image_dir):
-        if image_file.lower().endswith((".jpg", ".png")):
+        if image_file.lower().endswith((".jpg", ".png", ".jpeg", ".pdf")):
             image_path = os.path.join(image_dir, image_file)
             print(f"Processing: {image_file}")
 
