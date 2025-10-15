@@ -39,7 +39,7 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run production image analysis
-        run: python analyze_image_prod.py
+        run: python analyze_image/prod.py
 
       - name: List images directory (debug)
         run: ls -R images
