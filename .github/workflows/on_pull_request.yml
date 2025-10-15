@@ -16,6 +16,10 @@ jobs:
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       S3_BUCKET: ${{ secrets.S3_BUCKET }}
       DYNAMODB_TABLE: ${{ secrets.DYNAMODB_TABLE_BETA }}
+      GITHUB_REF_NAME: ${{ github.event.pull_request.base.ref }}
+      GITHUB_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+    #  GITHUB_BASE_REF: ${{ github.event.pull_request.base.ref }}
+    #  GITHUB_EVENT_NAME: ${{ github.event_name }}
 
     steps:
       - name: Checkout repository
