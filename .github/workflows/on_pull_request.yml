@@ -40,12 +40,3 @@ jobs:
 
       - name: List images directory (debug)
         run: ls -R images
-
-      - name: Debug environment variables
-        run: |
-          echo "GITHUB_REF_NAME: $GITHUB_REF_NAME"
-          echo "GITHUB_HEAD_REF: $GITHUB_HEAD_REF"
-          echo "Base ref (github.event.pull_request.base.ref): ${{ github.event.pull_request.base.ref }}"
-          echo "AWS_REGION: $AWS_REGION"
-          echo "S3_BUCKET: $S3_BUCKET"
-          echo "DYNAMODB_TABLE_BETA: $DYNAMODB_TABLE_BETA"

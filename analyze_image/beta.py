@@ -28,6 +28,7 @@ def main():
 
     print(f"[DEBUG] AWS_REGION = {aws_region}\n")
     print(f"[DEBUG] S3_BUCKET = {s3_bucket}\n")
+    print(f"[DEBUG] S3_BUCKET_PATH = {s3_bucket_Path}\n")")
     print(f"[DEBUG] DYNAMODB_TABLE_BETA = {dynamodb_table}\n")
 
     if not aws_region or not s3_bucket or not dynamodb_table:
@@ -46,12 +47,14 @@ def main():
 
     image_dir = "images"
     for image_file in os.listdir(image_dir):
-        if image_file.lower().endswith((".jpg", ".png")):
+        if image_file.lower().endswith((".jpg", ".png", ".jpeg", ".pdf")):
             image_path = os.path.join(image_dir, image_file)
             print(f"Processing: {image_file}")
 
             key = upload_to_s3(s3, s3_bucket, image_path)
             labels = analyze_image(rek, s3_bucket, key)
+            s3_bucket_path_beta = f"s3://{s3_bucket}/{key}"
+    
 
             image_id = os.path.splitext(image_file)[0]
             image_type = os.path.splitext(image_file)[1].lstrip(".").lower()
