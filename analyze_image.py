@@ -32,7 +32,7 @@ def main():
     tbl_prod = os.getenv("DYNAMODB_TABLE_PROD")
 
     # If branch is exactly “dev”, use prod; else use beta
-    if branch_name == "dev":
+    if branch_name == "prod":
         dynamodb_table = os.getenv("DYNAMODB_TABLE_PROD")
     else:
         dynamodb_table = os.getenv("DYNAMODB_TABLE_BETA")
