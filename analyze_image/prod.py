@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 
 def upload_to_s3(s3_client, bucket, image_path):
-    key = f"rekognition-input/{os.path.basename(image_path)}"
+    key = f"rekognition-input/prod/{os.path.basename(image_path)}"
     s3_client.upload_file(image_path, bucket, key)
     return key
 
@@ -23,6 +23,7 @@ def write_to_dynamodb(dynamodb, table_name, item):
 def main():
     aws_region = os.getenv("AWS_REGION")
     s3_bucket = os.getenv("S3_BUCKET")
+    s3_bucket_path_prod = os.getenv("S3_BUCKET_PATH_PROD")
     dynamodb_table = os.getenv("DYNAMODB_TABLE_PROD")
 
     print(f"[DEBUG] AWS_REGION = {aws_region}")
