@@ -35,7 +35,7 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run beta image analysis
-        run: python analyze_image_beta.py
+        run: python analyze_image/beta.py
 
       - name: List images directory (debug)
         run: ls -R images
