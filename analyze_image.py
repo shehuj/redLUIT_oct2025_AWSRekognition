@@ -17,35 +17,36 @@ def analyze_image(rek_client, bucket, key):
     return resp.get("Labels", [])
 
 def write_to_dynamodb(dynamodb, table_name, item):
-    # This is where the error arises if table_name is None
     table = dynamodb.Table(table_name)
     table.put_item(Item=item)
 
 def main():
     aws_region = os.getenv("AWS_REGION")
     s3_bucket = os.getenv("S3_BUCKET")
-    branch_name = os.getenv("GITHUB_REF_NAME") or "local"
+    ref_name = os.getenv("GITHUB_REF_NAME", "")
+    head_ref = os.getenv("GITHUB_HEAD_REF", "")
+    # Use PR head_ref if present, else fallback
+    branch_name = head_ref if head_ref else (ref_name or "local")
 
-    # Two table names from env
     tbl_beta = os.getenv("DYNAMODB_TABLE_BETA")
     tbl_prod = os.getenv("DYNAMODB_TABLE_PROD")
 
-    # Decide which table
+    # If branch is exactly “main”, use prod; else use beta
     if branch_name == "main":
         dynamodb_table = tbl_prod
     else:
         dynamodb_table = tbl_beta
 
-    # Debug / sanity check
-    print(f"[DEBUG] AWS_REGION = {aws_region}")
-    print(f"[DEBUG] S3_BUCKET = {s3_bucket}")
-    print(f"[DEBUG] branch_name = {branch_name}")
+    print(f"[DEBUG] GITHUB_HEAD_REF = {head_ref}")
+    print(f"[DEBUG] GITHUB_REF_NAME = {ref_name}")
+    print(f"[DEBUG] resolved branch_name = {branch_name}")
     print(f"[DEBUG] selected DynamoDB table = {dynamodb_table}")
 
     if not aws_region or not s3_bucket or not dynamodb_table:
         raise RuntimeError(
-            "Missing required environment configuration. "
-            "Ensure AWS_REGION, S3_BUCKET, and the correct DYNAMODB_TABLE_{BETA,PROD} env var are set."
+            "Missing one of AWS_REGION, S3_BUCKET, or the table name. "
+            "Got: aws_region=%s, s3_bucket=%s, dynamodb_table=%s"
+            % (aws_region, s3_bucket, dynamodb_table)
         )
 
     s3 = boto3.client("s3", region_name=aws_region)
