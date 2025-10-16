@@ -3,12 +3,15 @@ name: Deploy To Beta (On Pull Request)
 on:
   pull_request:
     branches:
-      - main
+      - dev
+  push:
+    branches:
+      - dev
     paths:
       - "images/**"
 
 jobs:
-  analyze-images:
+  analyze-images-dev:
     runs-on: ubuntu-latest
 
     env:
