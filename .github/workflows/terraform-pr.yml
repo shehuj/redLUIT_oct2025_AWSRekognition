@@ -4,8 +4,8 @@ on:
   pull_request:
     branches:
       - main
-    work-dir: terraform
     paths:
+      - terraform/**"
       - "modules/**"
       - "envs/**"
       - "lambda_handler.py"
