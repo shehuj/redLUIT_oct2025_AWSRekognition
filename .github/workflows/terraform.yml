@@ -42,89 +42,52 @@
 #       with:
 #         cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
 
-name: "Terraform (Rekognition / Lambda Infra)"
+name: 'Terraform'
 
 on:
-  pull_request:
-    branches:
-      - main
-    paths:
-      - "modules/**"
-      - "envs/**"
-      - "lambda_handler.py"
-      - ".github/workflows/terraform.yml"
   push:
-    branches:
-      - main
-    paths:
-      - "modules/**"
-      - "envs/**"
-      - "lambda_handler.py"
-      - ".github/workflows/terraform.yml"
+    branches: [ "main" ]
+  pull_request:
 
 permissions:
   contents: read
-  # If you want to comment on PR plans, enable pull-requests write permissions
-  pull-requests: write
 
 jobs:
   terraform:
-    name: "Terraform Plan / Apply"
+    name: 'Terraform'
     runs-on: ubuntu-latest
+    environment: production
+
+    # Use the Bash shell regardless whether the GitHub Actions runner is ubuntu-latest, macos-latest, or windows-latest
     defaults:
       run:
         shell: bash
 
     steps:
-    - name: Checkout repository
+    # Checkout the repository to the GitHub Actions runner
+    - name: Checkout
       uses: actions/checkout@v4
 
-    - name: Setup Terraform CLI
-      uses: hashicorp/setup-terraform@v3
+    # Install the latest version of Terraform CLI and configure the Terraform CLI configuration file with a Terraform Cloud user API token
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v1
       with:
-        terraform_version: "1.5.0"           # or whichever version you pin
         cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
 
-    - name: Terraform fmt (check)
-      run: terraform fmt -check
-
-    - name: Terraform init
+    # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
+    - name: Terraform Init
       run: terraform init
 
-    - name: Terraform validate
-      run: terraform validate
+    # Checks that all Terraform configuration files adhere to a canonical format
+    - name: Terraform Format
+      run: terraform fmt -check
 
-    - name: Terraform plan
-      id: plan
-      run: |
-        # We output the plan to a file so we can examine or comment on it
-        terraform plan -out=tfplan -input=false
-      # On pull requests, continue even if plan errors (so we can comment)  
-      continue-on-error: ${{ github.event_name == 'pull_request' }}
+    # Generates an execution plan for Terraform
+    - name: Terraform Plan
+      run: terraform plan -input=false
 
-    - name: Show plan output
-      if: github.event_name == 'pull_request'
-      run: terraform show -no-color tfplan
-
-    - name: Comment PR with plan (optional)
-      if: github.event_name == 'pull_request'
-      uses: actions/github-script@v7
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        script: |
-          const plan = `\`\`\`\n${{ steps.plan.outputs.stdout }}\n\`\`\``;
-          const body = `### Terraform Plan 🔍\n${plan}`;
-          github.rest.issues.createComment({
-            issue_number: context.issue.number,
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            body
-          })
-
-    - name: Fail if plan failed
-      if: steps.plan.outcome == 'failure' && github.event_name == 'push'
-      run: exit 1
-
-    - name: Terraform apply (prod)
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      # On push to "main", build or change infrastructure according to Terraform configuration files
+      # Note: It is recommended to set up a required "strict" status check in your repository for "Terraform Cloud". See the documentation on "strict" required status checks for more information: https://help.github.com/en/github/administering-a-repository/types-of-required-status-checks
+    - name: Terraform Apply
+      if: github.ref == 'refs/heads/"main"' && github.event_name == 'push'
       run: terraform apply -auto-approve -input=false
