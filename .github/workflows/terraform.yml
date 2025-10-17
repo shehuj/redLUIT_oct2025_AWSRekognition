@@ -37,6 +37,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Show OIDC token
+        run: echo "OIDC token: $ACTIONS_ID_TOKEN_REQUEST_TOKEN"
+
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v5
         with:
