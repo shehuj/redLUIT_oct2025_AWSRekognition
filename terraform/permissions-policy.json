@@ -4,10 +4,9 @@
     {
       "Effect": "Allow",
       "Action": [
-        "s3:ListBucket",
-        "s3:GetObject",
         "s3:PutObject",
-        "s3:DeleteObject"
+        "s3:GetObject",
+        "s3:ListBucket"
       ],
       "Resource": [
         "arn:aws:s3:::ec2-shutdown-lambda-bucket",
@@ -17,21 +16,21 @@
     {
       "Effect": "Allow",
       "Action": [
-        "rekognition:DetectLabels",
-        "rekognition:DetectFaces",
-        "rekognition:CompareFaces",
-        "rekognition:RecognizeCelebrities",
-        "rekognition:DetectText"
+        "lambda:*",
+        "cloudformation:*",
+        "dynamodb:*",
+        "iam:PassRole"
       ],
       "Resource": "*"
     },
     {
       "Effect": "Allow",
       "Action": [
-        "polly:SynthesizeSpeech",
-        "polly:DescribeVoices"
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
       ],
-      "Resource": "*"
+      "Resource": "arn:aws:logs:*:*:*"
     }
   ]
 }
