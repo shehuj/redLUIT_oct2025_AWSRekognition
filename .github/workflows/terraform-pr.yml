@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - main
+    work-dir: terraform
     paths:
       - "modules/**"
       - "envs/**"
