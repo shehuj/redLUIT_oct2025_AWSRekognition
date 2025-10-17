@@ -5,25 +5,23 @@ on:
     branches:
       - main
     paths:
-      - terraform/**"
+      - "terraform/**"  # Fixed: removed extra quote at the beginning
       - "modules/**"
       - "envs/**"
       - "lambda_handler.py"
       - ".github/workflows/**"
 
 permissions:
-  id-token: write      # needed for OIDC
-  contents: read       # to check out code
+  id-token: write  # needed for OIDC
+  contents: read   # to check out code
+  pull-requests: write  # Added: needed to comment on PRs
 
-
-env: 
-    TF_IN_AUTOMATION: true
-    AWS_REGION: ${{ secrets.AWS_REGION }}
-    AWS_GITHUB_OIDC_ROLE_ARN: ${{ secrets.AWS_GITHUB_OIDC_ROLE_ARN }}
-    AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-    AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-    TF_BACKEND_BUCKET: ${{ secrets.TF_BACKEND_BUCKET }}
-    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+env:
+  TF_IN_AUTOMATION: true
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  AWS_GITHUB_OIDC_ROLE_ARN: ${{ secrets.AWS_GITHUB_OIDC_ROLE_ARN }}
+  # Removed AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY - not needed with OIDC
+  TF_BACKEND_BUCKET: ${{ secrets.TF_BACKEND_BUCKET }}
 
 jobs:
   terraform:
@@ -32,59 +30,100 @@ jobs:
     defaults:
       run:
         shell: bash
-
+        working-directory: ./terraform  # Added working directory if terraform files are in terraform/
+    
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-
-    - name: Configure AWS credentials via OIDC
-      uses: aws-actions/configure-aws-credentials@v5
-      with:
-        role-to-assume: ${{ env.AWS_GITHUB_OIDC_ROLE_ARN }}
-        aws-region: ${{ env.AWS_REGION }}
-        audience: sts.amazonaws.com
-
-    - name: Verify identity
-      run: aws sts get-caller-identity
-
-    - name: Setup Terraform CLI
-      uses: hashicorp/setup-terraform@v3
-      with:
-        terraform_version: "1.5.0"
-
-    - name: Terraform fmt check
-      run: terraform fmt -check
-
-    - name: Terraform init
-      run: terraform init \
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ env.AWS_GITHUB_OIDC_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          audience: sts.amazonaws.com
+      
+      - name: Verify identity
+        run: aws sts get-caller-identity
+      
+      - name: Setup Terraform CLI
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.5.0"
+      
+      - name: Terraform fmt check
+        run: terraform fmt -check
+      
+      - name: Terraform init
+        run: |
+          terraform init \
             -backend-config="bucket=${{ env.TF_BACKEND_BUCKET }}" \
             -backend-config="key=beta/terraform.tfstate" \
             -backend-config="region=${{ env.AWS_REGION }}"
-
-    - name: Terraform validate
-      run: terraform validate
-
-    - name: Terraform plan (beta)
-      id: plan
-      run: terraform plan -out=tfplan -input=false \
-           -var="environment=beta"
-      continue-on-error: true
-
-    - name: Show plan (PR comment)
-      if: github.event_name == 'pull_request'
-      run: terraform show -no-color tfplan
-
-    - name: Comment PR with plan
-      if: github.event_name == 'pull_request'
-      uses: actions/github-script@v7
-      with:
-        github-token: ${{ env.GITHUB_TOKEN }}
-        script: |
-          const plan = `\`\`\`\n${{ steps.plan.outputs.stdout }}\n\`\`\``;
-          const body = `### Terraform Beta Plan\n${plan}`;
-          github.rest.issues.createComment({
-            issue_number: context.issue.number,
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            body
-          })
+      
+      - name: Terraform validate
+        run: terraform validate
+      
+      - name: Terraform plan (beta)
+        id: plan
+        run: |
+          terraform plan \
+            -out=tfplan \
+            -input=false \
+            -var="environment=beta"
+        continue-on-error: true
+      
+      - name: Generate plan output for PR
+        id: plan_output
+        if: github.event_name == 'pull_request'
+        run: |
+          PLAN_OUTPUT=$(terraform show -no-color tfplan)
+          echo "plan<<EOF" >> $GITHUB_OUTPUT
+          echo "$PLAN_OUTPUT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+      
+      - name: Comment PR with plan
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            // Find and delete existing bot comments
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            
+            const botComment = comments.find(comment => 
+              comment.user.type === 'Bot' && 
+              comment.body.includes('### Terraform Beta Plan')
+            );
+            
+            if (botComment) {
+              await github.rest.issues.deleteComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+              });
+            }
+            
+            // Create new comment with plan output
+            const output = `### Terraform Beta Plan
+            
+            <details><summary>Show Plan</summary>
+            
+            \`\`\`terraform
+            ${{ steps.plan_output.outputs.plan }}
+            \`\`\`
+            
+            </details>
+            
+            *Pusher: @${{ github.actor }}, Action: \`${{ github.event_name }}\`, Workflow: \`${{ github.workflow }}\`*`;
+            
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            });
