@@ -3,8 +3,12 @@ name: "Terraform Plan (PR / Beta Preview)"
 on:
   pull_request:
     branches:
-      - main
       - dev
+  
+  push:
+    branches:
+      - main
+      
     paths:
       - "terraform/**"
       - "modules/**"
@@ -39,7 +43,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Show OIDC token
-        run: echo "OIDC token: $ACTIONS_ID_TOKEN_REQUEST_TOKEN"
+        run: echo "OIDC token: ${{ secrets.$AWS_GITHUB_OIDC_ROLE_ARN" }}
 
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v5
