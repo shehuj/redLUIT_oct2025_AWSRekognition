@@ -1,138 +1,53 @@
-name: "Terraform Plan (PR / Beta Preview)"
+name: Terraform Deploy
 
 on:
+  push:
+    branches:
+      - main
   pull_request:
     branches:
       - main
-    paths:
-      - "terraform/**"
-      - "modules/**"
-      - "envs/**"
-      - "lambda_handler.py"
-      - ".github/workflows/**"
 
 permissions:
-  id-token: write        # Required for OIDC
-  contents: read         # To checkout code
-  pull-requests: write   # To comment on PRs
+  id-token: write
+  contents: read
 
 env:
-  TF_IN_AUTOMATION: true
-  AWS_REGION: ${{ secrets.AWS_REGION }}
-  AWS_GITHUB_OIDC_ROLE_ARN: ${{ secrets.AWS_GITHUB_OIDC_ROLE_ARN }}
-  TF_BACKEND_BUCKET: ${{ secrets.TF_BACKEND_BUCKET }}
-  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
+  AWS_REGION: us-east-1
 
 jobs:
   terraform:
-    name: Terraform Plan (PR)
+    name: Deploy
     runs-on: ubuntu-latest
     defaults:
       run:
         shell: bash
-        working-directory: terraform
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    - name: Checkout repo
+      uses: actions/checkout@v4
 
-      - name: Show OIDC token
-        run: echo "OIDC token: $ACTIONS_ID_TOKEN_REQUEST_TOKEN"
+    - name: Configure AWS credentials via OIDC
+      uses: aws-actions/configure-aws-credentials@v5
+      with:
+        role-to-assume: ${{ secrets.AWS_GITHUB_OIDC_ROLE_ARN }}
+        aws-region: ${{ env.AWS_REGION }}
+        audience: sts.amazonaws.com
 
-      - name: Configure AWS credentials via OIDC
-        uses: aws-actions/configure-aws-credentials@v5
-        with:
-          role-to-assume: ${{ env.AWS_GITHUB_OIDC_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-          audience: sts.amazonaws.com
+    - name: Verify identity
+      run: aws sts get-caller-identity
 
-      - name: Verify AWS Identity
-        run: aws sts get-caller-identity
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: "1.5.0"
 
-      - name: Setup Terraform CLI
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: "1.5.0"
+    - name: Terraform Init
+      run: terraform init
 
-      - name: Terraform Format Check
-        run: terraform fmt -check
+    - name: Terraform Plan
+      run: terraform plan -input=false
 
-      - name: Terraform Init
-        run: |
-          terraform init \
-            -backend-config="bucket=${{ env.TF_BACKEND_BUCKET }}" \
-            -backend-config="key=beta/terraform.tfstate" \
-            -backend-config="region=${{ env.AWS_REGION }}"
-
-      - name: Terraform Validate
-        run: terraform validate
-
-      - name: Terraform Plan (Beta)
-        id: plan
-        run: |
-          terraform plan \
-            -out=tfplan \
-            -input=false \
-            -var="environment=beta"
-        continue-on-error: false
-
-      - name: Generate Plan Output
-        id: plan_output
-        if: always() && github.event_name == 'pull_request'
-        run: |
-          if [ -f tfplan ]; then
-            terraform show -no-color tfplan > plan.txt
-            echo "plan<<EOF" >> $GITHUB_OUTPUT
-            cat plan.txt >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
-          else
-            echo "No tfplan file found. Skipping plan output." > plan.txt
-            echo "plan<<EOF" >> $GITHUB_OUTPUT
-            cat plan.txt >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Comment PR with Terraform Plan
-        if: always() && github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const { data: comments } = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-            });
-
-            const botComment = comments.find(comment =>
-              comment.user.type === 'Bot' &&
-              comment.body.includes('### Terraform Beta Plan')
-            );
-
-            if (botComment) {
-              await github.rest.issues.deleteComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: botComment.id,
-              });
-            }
-
-            const output = `### Terraform Beta Plan
-
-            <details><summary>Show Plan</summary>
-
-            \`\`\`terraform
-            ${{ steps.plan_output.outputs.plan }}
-            \`\`\`
-
-            </details>
-
-            *Pusher: @${{ github.actor }} — Workflow: \`${{ github.workflow }}\`*`;
-
-            await github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: output
-            });
+    - name: Terraform Apply
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      run: terraform apply -auto-approve -input=false
