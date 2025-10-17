@@ -21,6 +21,8 @@ env:
   AWS_REGION: ${{ secrets.AWS_REGION }}
   AWS_GITHUB_OIDC_ROLE_ARN: ${{ secrets.AWS_GITHUB_OIDC_ROLE_ARN }}
   TF_BACKEND_BUCKET: ${{ secrets.TF_BACKEND_BUCKET }}
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 
 jobs:
   terraform:
