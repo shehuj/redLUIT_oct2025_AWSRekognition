@@ -32,6 +32,10 @@ jobs:
       with:
         role-to-assume: ${{ secrets.AWS_GITHUB_OIDC_ROLE_ARN }}
         aws-region: ${{ secrets.AWS_REGION }}
+        audience: sts.amazonaws.com
+
+    - name: Verify identity
+      run: aws sts get-caller-identity
 
     - name: Setup Terraform CLI
       uses: hashicorp/setup-terraform@v3

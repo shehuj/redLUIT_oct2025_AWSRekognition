@@ -13,8 +13,8 @@
         },
         "StringLike": {
           "token.actions.githubusercontent.com:sub": [
-            "repo:YourOrg/YourRepo:ref:refs/heads/main",
-            "repo:YourOrg/YourRepo:ref:refs/heads/*"
+            "repo:shehuj/redLUIT_oct2025_AWSRekognition:ref:refs/heads/main",
+            "repo:shehuj/redLUIT_oct2025_AWSRekognition:ref:refs/heads/*"
           ]
         }
       }

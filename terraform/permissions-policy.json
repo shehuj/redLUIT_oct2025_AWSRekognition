@@ -1,27 +1,37 @@
 {
-    "Version": "2012-10-17",
-    "Statement": [
-      {
-        "Effect": "Allow",
-        "Action": [
-          "s3:PutObject",
-          "s3:GetObject",
-          "s3:ListBucket"
-        ],
-        "Resource": [
-          "arn:aws:s3:::ec2-shutdown-lambda-bucket/*",
-          "arn:aws:s3:::ec2-shutdown-lambda-bucket/*"
-        ]
-      },
-      {
-        "Effect": "Allow",
-        "Action": [
-          "cloudformation:*",
-          "lambda:*",
-          "dynamodb:*",
-          "iam:PassRole"
-        ],
-        "Resource": "*"
-      }
-    ]
-  }
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "s3:ListBucket",
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:DeleteObject"
+      ],
+      "Resource": [
+        "arn:aws:s3:::ec2-shutdown-lambda-bucket",
+        "arn:aws:s3:::ec2-shutdown-lambda-bucket/*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "rekognition:DetectLabels",
+        "rekognition:DetectFaces",
+        "rekognition:CompareFaces",
+        "rekognition:RecognizeCelebrities",
+        "rekognition:DetectText"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "polly:SynthesizeSpeech",
+        "polly:DescribeVoices"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
