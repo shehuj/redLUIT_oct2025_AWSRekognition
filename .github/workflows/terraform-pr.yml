@@ -5,22 +5,21 @@ on:
     branches:
       - main
     paths:
-      - "terraform/**"  # Fixed: removed extra quote at the beginning
+      - "terraform/**"
       - "modules/**"
       - "envs/**"
       - "lambda_handler.py"
       - ".github/workflows/**"
 
 permissions:
-  id-token: write  # needed for OIDC
-  contents: read   # to check out code
-  pull-requests: write  # Added: needed to comment on PRs
+  id-token: write        # Required for OIDC
+  contents: read         # To checkout code
+  pull-requests: write   # To comment on PRs
 
 env:
   TF_IN_AUTOMATION: true
   AWS_REGION: ${{ secrets.AWS_REGION }}
   AWS_GITHUB_OIDC_ROLE_ARN: ${{ secrets.AWS_GITHUB_OIDC_ROLE_ARN }}
-  # Removed AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY - not needed with OIDC
   TF_BACKEND_BUCKET: ${{ secrets.TF_BACKEND_BUCKET }}
 
 jobs:
@@ -30,42 +29,41 @@ jobs:
     defaults:
       run:
         shell: bash
-        working-directory: ./terraform  # Added working directory if terraform files are in terraform/
-    
+        working-directory: ./terraform
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      
+
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v5
         with:
-          role-to-assume: arn:aws:iam::615299732970:role/GitHubActionsOIDCNewRole
-            #  role-to-assume: ${{ env.AWS_GITHUB_OIDC_ROLE_ARN }}
+          role-to-assume: ${{ env.AWS_GITHUB_OIDC_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
           audience: sts.amazonaws.com
-      
-      - name: Verify identity
+
+      - name: Verify AWS Identity
         run: aws sts get-caller-identity
-      
+
       - name: Setup Terraform CLI
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: "1.5.0"
-      
-      - name: Terraform fmt check
+
+      - name: Terraform Format Check
         run: terraform fmt -check
-      
-      - name: Terraform init
+
+      - name: Terraform Init
         run: |
           terraform init \
             -backend-config="bucket=${{ env.TF_BACKEND_BUCKET }}" \
             -backend-config="key=beta/terraform.tfstate" \
             -backend-config="region=${{ env.AWS_REGION }}"
-      
-      - name: Terraform validate
+
+      - name: Terraform Validate
         run: terraform validate
-      
-      - name: Terraform plan (beta)
+
+      - name: Terraform Plan (Beta)
         id: plan
         run: |
           terraform plan \
@@ -73,34 +71,40 @@ jobs:
             -input=false \
             -var="environment=beta"
         continue-on-error: true
-      
-      - name: Generate plan output for PR
+
+      - name: Generate Plan Output
         id: plan_output
-        if: github.event_name == 'pull_request'
+        if: always() && github.event_name == 'pull_request'
         run: |
-          PLAN_OUTPUT=$(terraform show -no-color tfplan)
-          echo "plan<<EOF" >> $GITHUB_OUTPUT
-          echo "$PLAN_OUTPUT" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-      
-      - name: Comment PR with plan
-        if: github.event_name == 'pull_request'
+          if [ -f tfplan ]; then
+            terraform show -no-color tfplan > plan.txt
+            echo "plan<<EOF" >> $GITHUB_OUTPUT
+            cat plan.txt >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "No tfplan file found. Skipping plan output." > plan.txt
+            echo "plan<<EOF" >> $GITHUB_OUTPUT
+            cat plan.txt >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Comment PR with Terraform Plan
+        if: always() && github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            // Find and delete existing bot comments
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
             });
-            
-            const botComment = comments.find(comment => 
-              comment.user.type === 'Bot' && 
+
+            const botComment = comments.find(comment =>
+              comment.user.type === 'Bot' &&
               comment.body.includes('### Terraform Beta Plan')
             );
-            
+
             if (botComment) {
               await github.rest.issues.deleteComment({
                 owner: context.repo.owner,
@@ -108,20 +112,19 @@ jobs:
                 comment_id: botComment.id,
               });
             }
-            
-            // Create new comment with plan output
+
             const output = `### Terraform Beta Plan
-            
+
             <details><summary>Show Plan</summary>
-            
+
             \`\`\`terraform
             ${{ steps.plan_output.outputs.plan }}
             \`\`\`
-            
+
             </details>
-            
-            *Pusher: @${{ github.actor }}, Action: \`${{ github.event_name }}\`, Workflow: \`${{ github.workflow }}\`*`;
-            
+
+            *Pusher: @${{ github.actor }} — Workflow: \`${{ github.workflow }}\`*`;
+
             await github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
