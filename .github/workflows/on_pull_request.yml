@@ -11,7 +11,7 @@ on:
       - "images/**"
 
 jobs:
-  analyze-images-dev:
+  analyze-images-beta:
     runs-on: ubuntu-latest
 
     env:

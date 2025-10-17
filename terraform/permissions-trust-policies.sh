@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-### 👇 Configuration — YOU MUST EDIT THESE
+### 👇 Configuration
 AWS_ACCOUNT_ID="615299732970"
 GITHUB_ORG="shehuj"
 GITHUB_REPO="redLUIT_oct2025_AWSRekognition"
 AWS_REGION="us-east-1"
-
 ROLE_NAME="GitHubActionsOIDCNewRole"
 
+# 👇 Permissions policy (includes S3, Rekognition, Lambda, Terraform, Logs, etc.)
 read_policy_json=$(cat <<EOF
 {
   "Version": "2012-10-17",
@@ -28,10 +28,12 @@ read_policy_json=$(cat <<EOF
     {
       "Effect": "Allow",
       "Action": [
+        "rekognition:*",
         "lambda:*",
         "cloudformation:*",
         "dynamodb:*",
-        "iam:PassRole"
+        "iam:PassRole",
+        "sts:GetCallerIdentity"
       ],
       "Resource": "*"
     },
@@ -43,44 +45,59 @@ read_policy_json=$(cat <<EOF
         "logs:PutLogEvents"
       ],
       "Resource": "arn:aws:logs:*:*:*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ec2:Describe*",
+        "iam:List*",
+        "iam:Get*",
+        "s3:ListAllMyBuckets"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "terraform:*"
+      ],
+      "Resource": "*"
     }
   ]
 }
 EOF
 )
 
-### End of config
-
-# Validate that required commands exist
+# Validate required tools
 for cmd in aws jq; do
   if ! command -v "$cmd" &>/dev/null; then
-    echo "Error: '$cmd' is required but not installed."
+    echo "❌ Error: '$cmd' is required but not installed."
     exit 1
   fi
 done
 
-echo "Using AWS account: $AWS_ACCOUNT_ID, GitHub repo: $GITHUB_ORG/$GITHUB_REPO, region: $AWS_REGION"
+echo "🔧 Using AWS account: $AWS_ACCOUNT_ID, Repo: $GITHUB_ORG/$GITHUB_REPO, Region: $AWS_REGION"
 
-## 1. Ensure OIDC provider exists (or skip if exists)
+### 1️⃣ Ensure OIDC Provider exists (or skip)
 echo "==> Checking for existing OIDC provider..."
 OIDC_PROVIDER_ARN=$(aws iam list-open-id-connect-providers \
-  | jq -r ".OpenIDConnectProviderList[] | select(test(\"token.actions.githubusercontent.com\"))" \
+  | jq -r ".OpenIDConnectProviderList[] | select(.Arn | test(\"token.actions.githubusercontent.com\"))" \
   | xargs -r -I{} aws iam get-open-id-connect-provider --open-id-connect-provider-arn {} \
       | jq -r ".Arn" || true)
 
 if [ -z "$OIDC_PROVIDER_ARN" ] || [ "$OIDC_PROVIDER_ARN" = "null" ]; then
-  echo "OIDC provider not found. Creating one..."
+  echo "Creating new GitHub OIDC provider..."
   OIDC_PROVIDER_ARN=$(aws iam create-open-id-connect-provider \
     --url "https://token.actions.githubusercontent.com" \
     --client-id-list "sts.amazonaws.com" \
     --thumbprint-list "6938fd4d98bab03faadb97b34396831e3780aea1" \
     | jq -r ".OpenIDConnectProviderArn")
-  echo "Created new OIDC provider: $OIDC_PROVIDER_ARN"
+  echo "✅ Created OIDC provider: $OIDC_PROVIDER_ARN"
 else
-  echo "OIDC provider already exists: $OIDC_PROVIDER_ARN"
+  echo "✅ OIDC provider already exists: $OIDC_PROVIDER_ARN"
 fi
 
-## 2. Build trust policy JSON
+### 2️⃣ Build Trust Policy
 TRUST_POLICY=$(jq -n \
   --arg fid "arn:aws:iam::$AWS_ACCOUNT_ID:oidc-provider/token.actions.githubusercontent.com" \
   --arg sub1 "repo:$GITHUB_ORG/$GITHUB_REPO:ref:refs/heads/main" \
@@ -90,9 +107,7 @@ TRUST_POLICY=$(jq -n \
     Statement: [
       {
         Effect: "Allow",
-        Principal: {
-          Federated: $fid
-        },
+        Principal: { Federated: $fid },
         Action: "sts:AssumeRoleWithWebIdentity",
         Condition: {
           StringEquals: {
@@ -108,57 +123,63 @@ TRUST_POLICY=$(jq -n \
 
 echo "$TRUST_POLICY" > trust-policy.json
 
-## 3. Create or update IAM role with trust policy
-echo "==> Checking IAM role '$ROLE_NAME'..."
-role_info=$(aws iam get-role --role-name "$ROLE_NAME" 2>/dev/null || true)
-if [ -z "$role_info" ]; then
-  echo "Role does not exist. Creating role..."
+### 3️⃣ Create or Update IAM Role
+echo "==> Checking IAM Role '$ROLE_NAME'..."
+if ! aws iam get-role --role-name "$ROLE_NAME" &>/dev/null; then
+  echo "Creating role '$ROLE_NAME'..."
   aws iam create-role \
     --role-name "$ROLE_NAME" \
     --assume-role-policy-document file://trust-policy.json
-  echo "Role '$ROLE_NAME' created."
+  echo "✅ Role created."
 else
-  echo "Role '$ROLE_NAME' already exists. Updating trust policy..."
+  echo "Role already exists. Updating trust policy..."
   aws iam update-assume-role-policy \
     --role-name "$ROLE_NAME" \
     --policy-document file://trust-policy.json
-  echo "Trust policy updated."
+  echo "✅ Trust policy updated."
 fi
 
-## 4. Attach (or skip) permissions policy
-echo "==> Checking if permissions policy is already attached..."
-policy_names=$(aws iam list-role-policies --role-name "$ROLE_NAME" | jq -r ".PolicyNames[]")
-if echo "$policy_names" | grep -q "GitHubActionsPermissionsPolicy"; then
-  echo "Permissions policy 'GitHubActionsPermissionsPolicy' already exists on role. Skipping."
-else
-  echo "Attaching permissions policy to role..."
+### 4️⃣ Attach Inline Policy (skip if exists)
+echo "==> Checking inline policies..."
+POLICY_EXISTS=$(aws iam list-role-policies --role-name "$ROLE_NAME" | jq -r '.PolicyNames[]' | grep -Fx "GitHubActionsPermissionsPolicy" || true)
+if [ -n "$POLICY_EXISTS" ]; then
+  echo "Policy already exists — updating instead of re-attaching."
   echo "$read_policy_json" > permissions-policy.json
   aws iam put-role-policy \
     --role-name "$ROLE_NAME" \
     --policy-name "GitHubActionsPermissionsPolicy" \
     --policy-document file://permissions-policy.json
-  echo "Permissions policy attached."
+else
+  echo "Attaching new inline permissions policy..."
+  echo "$read_policy_json" > permissions-policy.json
+  aws iam put-role-policy \
+    --role-name "$ROLE_NAME" \
+    --policy-name "GitHubActionsPermissionsPolicy" \
+    --policy-document file://permissions-policy.json
+  echo "✅ Policy attached."
 fi
 
-## 5. Retrieve and print role ARN
+### 5️⃣ Print Role ARN
 ROLE_ARN=$(aws iam get-role --role-name "$ROLE_NAME" --query "Role.Arn" --output text)
-echo "✅ Role ARN: $ROLE_ARN"
+echo ""
+echo "✅ ROLE READY: $ROLE_ARN"
+echo ""
+echo "👉 Add to your GitHub repo secrets as:"
+echo "   AWS_GITHUB_OIDC_ROLE_ARN = $ROLE_ARN"
+echo ""
+echo "Then reference it in your GitHub Actions workflow under:"
+echo "   role-to-assume: \${{ secrets.AWS_GITHUB_OIDC_ROLE_ARN }}"
 
-echo
-echo "Add or update your GitHub secret (e.g. AWS_GITHUB_OIDC_ROLE_ARN) in the repo settings with:"
-echo "  $ROLE_ARN"
-echo
-echo "Update your GitHub Actions workflow to use that secret in the configure-aws-credentials step."
-
-## 6. Optionally set GitHub secret via gh CLI
+### 6️⃣ Optional — Auto-set GitHub secret via gh CLI
 if command -v gh >/dev/null; then
-  read -p "Would you like to set the secret automatically (via gh CLI)? y/n: " yn
+  read -p "Set GitHub secret automatically via gh CLI? (y/n): " yn
   if [[ "$yn" =~ ^[Yy]$ ]]; then
     gh secret set AWS_GITHUB_OIDC_ROLE_ARN --body "$ROLE_ARN"
-    echo "Secret AWS_GITHUB_OIDC_ROLE_ARN set via gh CLI."
+    echo "✅ Secret set in GitHub."
   else
-    echo "Skipping GitHub secret update."
+    echo "Skipped setting GitHub secret."
   fi
 fi
 
-echo "Script complete."
+echo ""
+echo "🎯 Complete! OIDC + IAM role setup finished successfully."
