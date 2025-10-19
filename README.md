@@ -1,0 +1,1 @@
+# redLUIT_oct2025_AWSRekognition
