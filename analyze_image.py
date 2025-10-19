@@ -105,10 +105,10 @@ def main():
                 write_to_dynamodb(dynamodb, dynamodb_table, item)
 
                 print(json.dumps(item, indent=2, default=str))
-                print("✅ Written to DynamoDB.\n")
+                print("Written to DynamoDB.\n")
 
             except Exception as e:
-                print(f"❌ Error processing {image_file}: {str(e)}\n")
+                print(f"Error processing {image_file}: {str(e)}\n")
                 continue
 
 
