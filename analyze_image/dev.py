@@ -7,7 +7,7 @@ from decimal import Decimal
 
 def upload_to_s3(s3_client, bucket, image_path):
     """Upload an image file to S3 bucket."""
-    key = f"rekognition-input/{os.path.basename(image_path)}"
+    key = f"rekognition-input/dev/{os.path.basename(image_path)}"
     s3_client.upload_file(image_path, bucket, key)
     return key
 
@@ -31,7 +31,7 @@ def main():
     # Get environment variables
     aws_region = os.getenv("AWS_REGION")
     s3_bucket = os.getenv("S3_BUCKET")
-    s3_bucket_path = os.getenv("S3_PREFIX", "")  # Optional
+    s3_bucket_path = os.getenv("S3_BUCKET_PATH")
     dynamodb_table = os.getenv("DYNAMODB_TABLE_BETA")
     
     # Debug output
