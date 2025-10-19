@@ -31,7 +31,7 @@ def main():
     # Get environment variables
     aws_region = os.getenv("AWS_REGION")
     s3_bucket = os.getenv("S3_BUCKET")
-    branch_name = os.getenv("GITHUB_REF_NAME", "dev")
+    branch_name = os.getenv("GITHUB_REF_NAME", "dev").replace("/", "-")
     aws_access_key = os.getenv("AWS_ACCESS_KEY_ID")
     aws_secret_key = os.getenv("AWS_SECRET_ACCESS_KEY")
 
@@ -67,7 +67,7 @@ def main():
         return
 
     for image_file in os.listdir(image_dir):
-        if image_file.lower().endswith((".jpg", ".jpeg", ".png")):
+        if image_file.lower().endswith((".jpg", ".jpeg", ".png", ".pdf")):
             image_path = os.path.join(image_dir, image_file)
             print(f"Processing: {image_file}")
 
