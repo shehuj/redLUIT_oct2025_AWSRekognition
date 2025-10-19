@@ -31,7 +31,7 @@ def main():
     # Get environment variables
     aws_region = os.getenv("AWS_REGION")
     s3_bucket = os.getenv("S3_BUCKET")
-    branch_name = os.getenv("GITHUB_REF_NAME", "dev")
+    branch_name = os.getenv("GITHUB_REF_NAME", "")
     aws_access_key = os.getenv("AWS_ACCESS_KEY_ID")
     aws_secret_key = os.getenv("AWS_SECRET_ACCESS_KEY")
 
@@ -41,7 +41,7 @@ def main():
         s3_prefix = "rekognition-input/prod"
     else:
         dynamodb_table = os.getenv("DYNAMODB_TABLE_BETA")
-        s3_prefix = f"rekognition-input/{branch_name}"
+        s3_prefix = f"rekognition-input/dev"
 
     print(f"[INFO] Running Rekognition analysis for branch '{branch_name}'")
     print(f"[DEBUG] AWS_REGION={aws_region}")
@@ -98,7 +98,7 @@ def main():
                         for lbl in labels
                     ],
                     "timestamp": datetime.now(timezone.utc).isoformat(),
-                    "branch": branch_name,
+                    "branch": branch_name, 
                 }
 
                 # Write to DynamoDB
