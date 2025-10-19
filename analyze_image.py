@@ -41,7 +41,7 @@ def main():
         s3_prefix = "rekognition-input/prod"
     else:
         dynamodb_table = os.getenv("DYNAMODB_TABLE_BETA")
-        s3_prefix = f"rekognition-input/{branch_name}"
+        s3_prefix = f"rekognition-input/dev"
 
     print(f"[INFO] Running Rekognition analysis for branch '{branch_name}'")
     print(f"[DEBUG] AWS_REGION={aws_region}")
