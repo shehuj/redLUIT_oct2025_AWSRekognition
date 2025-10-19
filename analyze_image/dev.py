@@ -31,13 +31,15 @@ def main():
     # Get environment variables
     aws_region = os.getenv("AWS_REGION")
     s3_bucket = os.getenv("S3_BUCKET")
-    s3_bucket_path = os.getenv("S3_BUCKET_PATH")
+    s3_bucket_path = os.getenv("S3_PREFIX", "")
     dynamodb_table = os.getenv("DYNAMODB_TABLE_BETA")
+    aws_access_key = os.getenv("AWS_ACCESS_KEY_ID")
+    aws_secret_key = os.getenv("AWS_SECRET_ACCESS_KEY")
     
     # Debug output
     print(f"[DEBUG] AWS_REGION = {aws_region}")
     print(f"[DEBUG] S3_BUCKET = {s3_bucket}")
-    print(f"[DEBUG] S3_BUCKET_PATH = {s3_bucket_path}")
+    print(f"[DEBUG] S3_PREFIX = {s3_bucket_path}")
     print(f"[DEBUG] DYNAMODB_TABLE_BETA = {dynamodb_table}\n")
     
     # Validate required environment variables
